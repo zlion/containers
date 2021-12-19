@@ -1,0 +1,55 @@
+FROM centos:7
+
+ARG TAG
+
+RUN yum install -y epel-release.noarch
+RUN yum install -y python-pip
+RUN yum install -y voms-clients-java
+RUN yum install -y gfal2-all gfal2-util
+RUN yum install -y nordugrid-arc-client nordugrid-arc-plugins-gfal \
+                   nordugrid-arc-plugins-globus nordugrid-arc-plugins-s3 \
+                   nordugrid-arc-plugins-xrootd
+RUN yum install -y python-devel \
+                   openssl-devel
+
+# Upgrade pip & setuptools
+RUN pip install --upgrade pip
+RUN pip install --upgrade setuptools
+
+# Install Rucio
+COPY rucio-clients-1.21.4.tar.gz .
+#RUN pip install --pre rucio-clients==$TAG
+RUN pip install rucio-clients-1.21.4.tar.gz
+RUN pip install jinja2 j2cli pyyaml
+
+COPY rucio.cfg.j2 /
+
+#
+# Install bde-devel
+#
+RUN yum install -y \
+      wget \
+      gcc-c++ \
+      curl-devel
+RUN yum clean all
+
+# install cmake
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.17.1/cmake-3.17.1-Linux-x86_64.tar.gz &&\
+    tar xvfz cmake-3.17.1-Linux-x86_64.tar.gz -C /opt &&\
+    rm -f cmake-3.17.1-Linux-x86_64.tar.gz
+
+#git clone --recurse-submodule ssh://p-bigdata-express@cdcvs.fnal.gov/cvs/projects/bigdata-express-devel    
+COPY ./bigdata-express-devel /opt/bigdata-express-devel/ 
+RUN cd /opt/bigdata-express-devel &&\
+    mkdir -p build; cd build &&\
+    /opt/cmake-3.17.1-Linux-x86_64/bin/cmake -DCMAKE_INSTALL_PREFIX=/usr/local .. &&\
+    make && \
+    ln -s /opt/bigdata-express-devel/build/workflow/workflow /usr/local/bin/workflow
+
+
+# To generate the configuration and enable bash completion for the rucio clients
+ADD bashrc /root/.bashrc
+
+ENV PATH $PATH:/opt/rucio/bin
+
+CMD ["/bin/bash"]
