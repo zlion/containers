@@ -125,8 +125,37 @@ RUN chmod +x $RUCIOHOME/etc/dashboards/import_dashboards.sh
 COPY monit-entrypoint.sh /monit-entrypoint.sh
 RUN chmod +x /monit-entrypoint.sh
 
+
+#
+# Install bde-devel
+#
+RUN yum install -y \
+      wget \
+      gcc-c++ \
+      curl-devel
+RUN yum clean all
+
+# install cmake
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.17.1/cmake-3.17.1-Linux-x86_64.tar.gz &&\
+    tar xvfz cmake-3.17.1-Linux-x86_64.tar.gz -C /opt &&\
+    rm -f cmake-3.17.1-Linux-x86_64.tar.gz
+
+#git clone --recurse-submodule ssh://p-bigdata-express@cdcvs.fnal.gov/cvs/projects/bigdata-express-devel    
+COPY ./bigdata-express-devel /opt/bigdata-express-devel/ 
+RUN cd /opt/bigdata-express-devel &&\
+    mkdir -p build; cd build &&\
+    /opt/cmake-3.17.1-Linux-x86_64/bin/cmake -DCMAKE_INSTALL_PREFIX=/usr/local .. &&\
+    make && \
+    ln -s /opt/bigdata-express-devel/build/workflow/workflow /usr/local/bin/workflow
+    
+#
+# BDE test script
+#
+COPY test*.py ./
+
 EXPOSE 443
 
 ENV PATH $PATH:$RUCIOHOME/bin
+ENV PYTHONPATH=/opt/bigdata-express-devel/build/lib/:$PYTHONPATH
 
 CMD ["httpd","-D","FOREGROUND"]
